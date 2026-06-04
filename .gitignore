@@ -1,0 +1,64 @@
+# ==========================================
+# Dependências do Node.js
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# ==========================================
+# Pastas de Cache e Build do Expo / Metro
+# ==========================================
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# ==========================================
+# Pastas Nativas (Caso faça "eject" no futuro)
+# ==========================================
+# Se você não for editar código nativo (Java/Swift), é melhor ignorar.
+# Se for usar, pode comentar essas duas linhas.
+android/
+ios/
+
+# ==========================================
+# Variáveis de Ambiente e Segredos
+# ==========================================
+# NUNCA suba arquivos .env para o GitHub! Eles contêm senhas e chaves.
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.p12
+*.p8
+*.key
+*.mobileprovision
+*.jks
+*.keystore
+
+# ==========================================
+# Arquivos de Sistema Operacional
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==========================================
+# Configurações de Editores (VS Code, etc)
+# ==========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
