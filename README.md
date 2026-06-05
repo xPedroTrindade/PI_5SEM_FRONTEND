@@ -1,6 +1,6 @@
 # 🚗 DriverPro
 
-**DriverPro** é um aplicativo mobile desenvolvido como projeto de conclusão do 5º semestre do curso de Engenharia de Software. O sistema tem como objetivo principal modernizar e facilitar o agendamento de corridas para **motoristas particulares**, permitindo que eles tenham controle total sobre sua agenda e margem de lucro, enquanto oferece aos passageiros uma experiência de agendamento personalizada e segura.
+**DriverPro** é um aplicativo mobile desenvolvido como projeto integrador do 5º semestre do curso de Análise e Desenvolvimento de Sistemas. O sistema tem como objetivo principal modernizar e facilitar o agendamento de corridas para **motoristas particulares**, permitindo que eles tenham controle total sobre sua agenda e margem de lucro, enquanto oferece aos passageiros uma experiência de agendamento personalizada e segura.
 
 ## 🌟 Principais Funcionalidades
 
@@ -69,12 +69,12 @@ Para rodar este projeto na sua máquina, você precisará ter o [Node.js](https:
 
 **1. Clone o repositório:**
 ```bash
-git clone https://github.com/caneschi-lais/driverpro-frontend.git
+git clone https://github.com/xPedroTrindade/PI_5SEM_FRONTEND.git
 ```
 
 **2. Acesse a pasta do projeto:**
 ```bash
-cd driverpro
+cd PI_5SEM_FRONTEND
 ```
 
 **3. Instale as dependências:**
