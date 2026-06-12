@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInput } from '../components/CustomInput';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { Dropdown } from '../components/Dropdown';
+import { RegisterPassengerModal } from '../components/RegisterPassengerModal';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
 
@@ -12,7 +14,9 @@ interface Props {
 
 export default function DriverAddRidePage({ navigate }: Props) {
     const { driver } = useAuth();
-    const [passengerName, setPassengerName] = useState('');
+    const [passengers, setPassengers] = useState<any[]>([]);
+    const [selectedPassengerId, setSelectedPassengerId] = useState<string | null>(null);
+    const [showAddPassenger, setShowAddPassenger] = useState(false);
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
     const [pickup, setPickup] = useState('');
@@ -20,6 +24,16 @@ export default function DriverAddRidePage({ navigate }: Props) {
     const [distance, setDistance] = useState('');
     const [price, setPrice] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const loadPassengers = useCallback(async () => {
+        if (!driver?.driverId) return;
+        try {
+            const { data } = await api.get(`/api/drivers/${driver.driverId}/passengers`);
+            setPassengers(Array.isArray(data) ? data : []);
+        } catch {}
+    }, [driver?.driverId]);
+
+    useEffect(() => { loadPassengers(); }, [loadPassengers]);
 
     function parseDate(input: string): string | null {
         const parts = input.trim().split('/');
@@ -34,7 +48,12 @@ export default function DriverAddRidePage({ navigate }: Props) {
     }
 
     async function handleSaveRide() {
-        if (!passengerName.trim() || !date.trim() || !time.trim() || !pickup.trim() || !destination.trim()) {
+        const passenger = passengers.find(p => p._id === selectedPassengerId);
+        if (!passenger) {
+            Alert.alert('Atenção', 'Selecione um passageiro (ou cadastre um novo).');
+            return;
+        }
+        if (!date.trim() || !time.trim() || !pickup.trim() || !destination.trim()) {
             Alert.alert('Atenção', 'Preencha todos os campos obrigatórios.');
             return;
         }
@@ -57,7 +76,8 @@ export default function DriverAddRidePage({ navigate }: Props) {
         try {
             await api.post('/api/rides', {
                 driverId: driver?.driverId,
-                passageiroNome: passengerName.trim(),
+                passageiroId: passenger._id,
+                passageiroNome: passenger.nome,
                 data: parsedDate,
                 hora: time.trim(),
                 origem: pickup.trim(),
@@ -72,6 +92,8 @@ export default function DriverAddRidePage({ navigate }: Props) {
             setLoading(false);
         }
     }
+
+    const passengerOptions = passengers.map(p => ({ label: p.nome, value: p._id }));
 
     return (
         <SafeAreaView className="flex-1 bg-background">
@@ -88,15 +110,19 @@ export default function DriverAddRidePage({ navigate }: Props) {
                 <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
 
                     <Text className="text-surface-muted mb-6 font-medium text-sm">
-                        Use esta tela para registrar corridas agendadas por fora do aplicativo (telefone, WhatsApp, etc) e manter sua agenda organizada.
+                        Use esta tela para registrar corridas combinadas por fora do app (telefone, WhatsApp, etc) e manter sua agenda organizada.
                     </Text>
 
-                    <Text className="text-primary font-bold text-lg mb-3">1. Dados do Passageiro</Text>
-                    <CustomInput
+                    <Text className="text-primary font-bold text-lg mb-3">1. Passageiro</Text>
+                    <Dropdown
                         iconName="person-outline"
-                        placeholder="Nome do Passageiro"
-                        value={passengerName}
-                        onChangeText={setPassengerName}
+                        placeholder="Selecione o passageiro"
+                        value={selectedPassengerId}
+                        options={passengerOptions}
+                        onSelect={setSelectedPassengerId}
+                        emptyLabel="Você ainda não tem passageiros. Cadastre um abaixo."
+                        footerLabel="Cadastrar novo passageiro"
+                        onFooterPress={() => setShowAddPassenger(true)}
                     />
 
                     <Text className="text-primary font-bold text-lg mt-4 mb-3">2. Data e Horário</Text>
@@ -155,6 +181,17 @@ export default function DriverAddRidePage({ navigate }: Props) {
 
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <RegisterPassengerModal
+                visible={showAddPassenger}
+                driverId={driver?.driverId}
+                onClose={() => setShowAddPassenger(false)}
+                onCreated={(p) => {
+                    setShowAddPassenger(false);
+                    setPassengers(prev => [p, ...prev]);
+                    setSelectedPassengerId(p._id);
+                }}
+            />
         </SafeAreaView>
     );
 }

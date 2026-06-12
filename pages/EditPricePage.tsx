@@ -12,7 +12,7 @@ interface Props {
 
 export default function EditPricePage({ navigate }: Props) {
     const { driver } = useAuth();
-    const [price, setPrice] = useState(driver?.precoKm?.toString().replace('.', ',') ?? '');
+    const [price, setPrice] = useState(driver?.precoKm ? driver.precoKm.toString().replace('.', ',') : '');
     const [loading, setLoading] = useState(false);
 
     async function handleSave() {

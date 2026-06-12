@@ -49,9 +49,9 @@ export default function DriverSettingsPage({ navigate }: Props) {
         navigate('Login');
     }
 
-    const priceLabel = driver?.precoKm != null
+    const priceLabel = driver?.precoKm
         ? `Atualmente: R$ ${driver.precoKm.toFixed(2).replace('.', ',')}/km`
-        : 'Configurar valor por km';
+        : 'Defina seu valor por km';
 
     const avatarUri = user?.avatarUrl ? `${api.defaults.baseURL}${user.avatarUrl}` : undefined;
 
@@ -114,6 +114,13 @@ export default function DriverSettingsPage({ navigate }: Props) {
                     title="Preço por KM"
                     subtitle={priceLabel}
                     onPress={() => navigate('EditPrice')}
+                />
+
+                <SettingsMenuItem
+                    iconName="people-outline"
+                    title="Meus Passageiros"
+                    subtitle="Cadastre e gerencie seus passageiros"
+                    onPress={() => navigate('DriverPassengers')}
                 />
 
                 <Text className="text-surface-muted font-bold mb-3 mt-4 uppercase tracking-wider text-xs">Preferências</Text>

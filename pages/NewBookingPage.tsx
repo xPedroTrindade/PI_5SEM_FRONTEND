@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Switch, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInput } from '../components/CustomInput';
 import { CustomCheckbox } from '../components/CustomCheckbox';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { useAuth } from '../contexts/AuthContext';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { DatePickerModal } from '../components/DatePickerModal';
 import api from '../config/api';
+import { GeoLocation, getRoute } from '../utils/geo';
 
 interface Props {
     navigate: (screen: string) => void;
@@ -20,12 +22,29 @@ interface DriverOption {
     vehicle: { modelo: string; placa: string } | null;
 }
 
+function pad(n: number) {
+    return n.toString().padStart(2, '0');
+}
+function formatBR(d: Date) {
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+function toISODate(d: Date) {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+// Encurta o endereço completo do OpenStreetMap para algo legível
+function shortLabel(loc: GeoLocation) {
+    return loc.displayName.split(',').slice(0, 3).join(',').trim();
+}
+
 export default function NewBookingPage({ navigate }: Props) {
-    const { user } = useAuth();
-    const [origin, setOrigin] = useState('');
-    const [destination, setDestination] = useState('');
+    const [originLoc, setOriginLoc] = useState<GeoLocation | null>(null);
+    const [destLoc, setDestLoc] = useState<GeoLocation | null>(null);
     const [distance, setDistance] = useState('');
-    const [date, setDate] = useState('');
+    const [routeMin, setRouteMin] = useState<number | null>(null);
+    const [calcDist, setCalcDist] = useState(false);
+    const [distMsg, setDistMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [showCalendar, setShowCalendar] = useState(false);
     const [time, setTime] = useState('');
     const [category, setCategory] = useState<'Padrão' | 'VIP'>('Padrão');
     const [hasPets, setHasPets] = useState(false);
@@ -43,37 +62,69 @@ export default function NewBookingPage({ navigate }: Props) {
             .finally(() => setLoadingDrivers(false));
     }, []);
 
-    function parseDate(input: string): string | null {
-        const parts = input.trim().split('/');
-        if (parts.length === 2) {
-            const year = new Date().getFullYear();
-            return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-        return null;
-    }
-
-    const distValue = parseFloat(distance.replace(',', '.')) || 0;
-    const estimatedPrice = selectedDriver ? (selectedDriver.precoKm * distValue).toFixed(2).replace('.', ',') : '0,00';
-
-    async function handleConfirm() {
-        if (!origin.trim() || !destination.trim()) {
-            Alert.alert('Atenção', 'Informe a origem e o destino.');
+    // Calcula a distância/tempo automaticamente quando origem e destino são escolhidos
+    useEffect(() => {
+        if (!originLoc || !destLoc) {
+            setDistance('');
+            setRouteMin(null);
+            setDistMsg(null);
             return;
         }
-        if (!distance.trim() || distValue <= 0) {
-            Alert.alert('Atenção', 'Informe a distância estimada em km.');
+        let active = true;
+        setCalcDist(true);
+        setDistMsg(null);
+        getRoute(originLoc.lat, originLoc.lon, destLoc.lat, destLoc.lon)
+            .then((r) => {
+                if (!active) return;
+                setDistance(r.distanceKm.toFixed(1).replace('.', ','));
+                setRouteMin(r.durationMin);
+                setDistMsg({ type: 'ok', text: 'Rota encontrada' });
+            })
+            .catch(() => {
+                if (!active) return;
+                setDistance('');
+                setRouteMin(null);
+                setDistMsg({ type: 'err', text: 'Não foi possível calcular a rota entre esses endereços.' });
+            })
+            .finally(() => {
+                if (active) setCalcDist(false);
+            });
+        return () => { active = false; };
+    }, [originLoc, destLoc]);
+
+    const distValue = parseFloat(distance.replace(',', '.')) || 0;
+
+    // Máscara de horário: formata os dígitos como HH:MM e valida 00-23 / 00-59
+    function handleTimeChange(text: string) {
+        const digits = text.replace(/\D/g, '').slice(0, 4);
+        if (digits.length <= 2) {
+            let hh = digits;
+            if (digits.length === 2 && parseInt(digits, 10) > 23) hh = '23';
+            setTime(hh);
+        } else {
+            let hh = digits.slice(0, 2);
+            let mm = digits.slice(2);
+            if (parseInt(hh, 10) > 23) hh = '23';
+            if (parseInt(mm, 10) > 59) mm = '59';
+            setTime(`${hh}:${mm}`);
+        }
+    }
+
+    async function handleConfirm() {
+        if (!originLoc || !destLoc) {
+            Alert.alert('Atenção', 'Selecione a origem e o destino na lista de sugestões.');
+            return;
+        }
+        if (distValue <= 0) {
+            Alert.alert('Atenção', 'Aguarde o cálculo da distância da rota.');
             return;
         }
         if (!selectedDriver) {
             Alert.alert('Atenção', 'Selecione um motorista.');
             return;
         }
-        const parsedDate = parseDate(date);
-        if (!parsedDate) {
-            Alert.alert('Atenção', 'Informe a data no formato DD/MM ou DD/MM/AAAA.');
+        if (!selectedDate) {
+            Alert.alert('Atenção', 'Selecione a data da corrida.');
             return;
         }
         if (!time.trim() || !/^\d{2}:\d{2}$/.test(time.trim())) {
@@ -84,14 +135,14 @@ export default function NewBookingPage({ navigate }: Props) {
         try {
             await api.post('/api/rides/request', {
                 driverId: selectedDriver._id,
-                origem: origin.trim(),
-                destino: destination.trim(),
+                origem: shortLabel(originLoc),
+                destino: shortLabel(destLoc),
                 distanciaKm: distValue,
-                data: parsedDate,
+                data: toISODate(selectedDate),
                 hora: time.trim(),
             });
-            Alert.alert('Sucesso', 'Corrida agendada! O motorista receberá sua solicitação.', [
-                { text: 'OK', onPress: () => navigate('PassengerDashboard') }
+            Alert.alert('Solicitação enviada', 'O motorista vai enviar o orçamento. Acompanhe em "Minhas Viagens" para confirmar o valor.', [
+                { text: 'OK', onPress: () => navigate('PassengerAgenda') }
             ]);
         } catch (err: any) {
             Alert.alert('Erro', err.response?.data?.error ?? 'Não foi possível agendar.');
@@ -112,12 +163,45 @@ export default function NewBookingPage({ navigate }: Props) {
             </View>
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                     <Text className="text-primary font-bold text-lg mb-3">1. Qual a rota?</Text>
-                    <CustomInput iconName="location-outline" placeholder="Local de Partida (Origem)" value={origin} onChangeText={setOrigin} />
-                    <CustomInput iconName="location" placeholder="Para onde vamos? (Destino)" value={destination} onChangeText={setDestination} />
-                    <CustomInput iconName="map-outline" placeholder="Distância estimada (km)" keyboardType="numeric" value={distance} onChangeText={setDistance} />
+                    <AddressAutocomplete
+                        iconName="location-outline"
+                        placeholder="Local de Partida (Origem)"
+                        onLocationSelect={setOriginLoc}
+                        onClear={() => setOriginLoc(null)}
+                    />
+                    <AddressAutocomplete
+                        iconName="location"
+                        placeholder="Para onde vamos? (Destino)"
+                        onLocationSelect={setDestLoc}
+                        onClear={() => setDestLoc(null)}
+                    />
+
+                    {/* Resumo da rota (distância + tempo) */}
+                    {calcDist && (
+                        <View className="flex-row items-center mt-1 mb-3 ml-1">
+                            <ActivityIndicator size="small" color="#1A237E" />
+                            <Text className="text-primary text-xs font-bold ml-2">Calculando distância da rota...</Text>
+                        </View>
+                    )}
+                    {!calcDist && distMsg?.type === 'ok' && distValue > 0 && (
+                        <View className="flex-row justify-around items-center bg-background-paper border border-surface-border rounded-xl p-3 mt-1 mb-3">
+                            <View className="items-center">
+                                <Text className="text-surface-muted text-[10px] uppercase font-bold tracking-wider">Distância</Text>
+                                <Text className="text-primary font-extrabold text-base">{distance} km</Text>
+                            </View>
+                            <View className="w-px h-7 bg-surface-border" />
+                            <View className="items-center">
+                                <Text className="text-surface-muted text-[10px] uppercase font-bold tracking-wider">Tempo est.</Text>
+                                <Text className="text-primary font-extrabold text-base">{routeMin ?? '--'} min</Text>
+                            </View>
+                        </View>
+                    )}
+                    {!calcDist && distMsg?.type === 'err' && (
+                        <Text className="text-status-danger text-xs mt-1 mb-3 ml-1">{distMsg.text}</Text>
+                    )}
 
                     <Text className="text-primary font-bold text-lg mt-4 mb-3">2. Preferências da Viagem</Text>
                     <View className="mb-4">
@@ -152,7 +236,7 @@ export default function NewBookingPage({ navigate }: Props) {
                                                 {d.userId?.nome ?? 'Motorista'}
                                             </Text>
                                             <Text className={`text-xs mt-0.5 ${selectedDriver?._id === d._id ? 'text-accent' : 'text-surface-muted'}`}>
-                                                {d.vehicle ? `${d.vehicle.modelo} - ${d.vehicle.placa}` : 'Veículo não cadastrado'} • R$ {d.precoKm.toFixed(2).replace('.', ',')}/km
+                                                {d.vehicle ? `${d.vehicle.modelo} - ${d.vehicle.placa}` : 'Veículo não cadastrado'}
                                             </Text>
                                         </View>
                                         {selectedDriver?._id === d._id && <Ionicons name="checkmark-circle" size={20} color="#FDD835" />}
@@ -164,10 +248,18 @@ export default function NewBookingPage({ navigate }: Props) {
 
                     <View className="flex-row justify-between mb-4">
                         <View className="flex-1 mr-2">
-                            <CustomInput iconName="calendar-outline" placeholder="Data (DD/MM)" value={date} onChangeText={setDate} />
+                            <TouchableOpacity
+                                onPress={() => setShowCalendar(true)}
+                                className="flex-row items-center bg-white w-full p-4 rounded-lg shadow-sm mb-4 border border-surface-border"
+                            >
+                                <Ionicons name="calendar-outline" size={20} color="#1A237E" />
+                                <Text className={`text-base ml-3 ${selectedDate ? 'text-primary' : 'text-surface-muted'}`}>
+                                    {selectedDate ? formatBR(selectedDate) : 'Data'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                         <View className="flex-1 ml-2">
-                            <CustomInput iconName="time-outline" placeholder="Hora (HH:MM)" value={time} onChangeText={setTime} />
+                            <CustomInput iconName="time-outline" placeholder="Hora (HH:MM)" keyboardType="numeric" maxLength={5} value={time} onChangeText={handleTimeChange} />
                         </View>
                     </View>
 
@@ -175,16 +267,26 @@ export default function NewBookingPage({ navigate }: Props) {
 
                 {/* Footer Fixo */}
                 <View className="bg-background-paper p-5 rounded-t-3xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] border-t border-surface-border mt-auto">
-                    <View className="flex-row justify-between items-center mb-3">
-                        <Text className="text-surface-muted font-bold text-xs uppercase tracking-wider">Estimativa de Preço</Text>
-                        <Text className="text-3xl font-extrabold text-primary">R$ {estimatedPrice}</Text>
+                    <View className="flex-row items-center mb-3">
+                        <Ionicons name="information-circle-outline" size={16} color="#1A237E" />
+                        <Text className="text-surface-muted text-xs ml-2 flex-1">
+                            O motorista vai enviar o orçamento. Você confirma o valor depois.
+                        </Text>
                     </View>
                     {loading
                         ? <ActivityIndicator size="large" color="#1A237E" />
-                        : <PrimaryButton title="Confirmar Agendamento" onPress={handleConfirm} />}
+                        : <PrimaryButton title="Solicitar Orçamento" onPress={handleConfirm} />}
                 </View>
 
             </KeyboardAvoidingView>
+
+            <DatePickerModal
+                visible={showCalendar}
+                value={selectedDate}
+                minDate={new Date()}
+                onSelect={(d) => setSelectedDate(d)}
+                onClose={() => setShowCalendar(false)}
+            />
         </SafeAreaView>
     );
 }

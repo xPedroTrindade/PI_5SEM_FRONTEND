@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 
 interface StatusBadgeProps {
-    status: 'Concluída' | 'Confirmada' | 'Pendente' | 'Pagamento Pendente' | 'Cancelada' | 'Reembolsada';
+    status: 'Concluída' | 'Confirmada' | 'Pendente' | 'Pagamento Pendente' | 'Em andamento' | 'Cancelada' | 'Reembolsada';
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
@@ -17,6 +17,9 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     } else if (status === 'Pendente' || status === 'Pagamento Pendente') {
         bgColor = 'bg-yellow-100 border-yellow-200';
         textColor = 'text-yellow-700';
+    } else if (status === 'Em andamento') {
+        bgColor = 'bg-blue-100 border-blue-200';
+        textColor = 'text-blue-700';
     } else if (status === 'Cancelada') {
         bgColor = 'bg-red-100 border-red-200';
         textColor = 'text-red-700';

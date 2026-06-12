@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PassengerBottomNavProps {
     currentScreen: string;
@@ -8,8 +9,14 @@ interface PassengerBottomNavProps {
 }
 
 export function PassengerBottomNav({ currentScreen, navigate }: PassengerBottomNavProps) {
+    const { signOut } = useAuth();
     const getColor = (screenName: string) => currentScreen === screenName ? '#1A237E' : '#9CA3AF';
     const getTextColor = (screenName: string) => currentScreen === screenName ? 'text-primary' : 'text-surface-muted';
+
+    const handleSignOut = async () => {
+        await signOut();
+        navigate('Login');
+    };
 
     return (
         <View className="flex-row justify-around items-center bg-background-paper py-3 border-t border-surface-border">
@@ -35,7 +42,7 @@ export function PassengerBottomNav({ currentScreen, navigate }: PassengerBottomN
             </TouchableOpacity>
 
             {/* 4. Sair */}
-            <TouchableOpacity className="items-center" onPress={() => navigate('Login')}>
+            <TouchableOpacity className="items-center" onPress={handleSignOut}>
                 <Ionicons name="log-out-outline" size={24} color="#EF4444" />
                 <Text className="text-[10px] font-bold mt-1 text-red-500">Sair</Text>
             </TouchableOpacity>

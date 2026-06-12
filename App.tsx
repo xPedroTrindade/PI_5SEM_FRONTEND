@@ -24,6 +24,7 @@ import PassengerAgendaPage from './pages/PassengerAgendaPage';
 import PassengerHistoryPage from './pages/PassengerHistoryPage';
 import RideDetailsPage from './pages/RideDetailsPage';
 import DriverAddRidePage from './pages/DriverAddRidePage';
+import DriverPassengersPage from './pages/DriverPassengersPage';
 import EditProfilePage from './pages/EditProfilePage';
 import EditPricePage from './pages/EditPricePage';
 import AboutPage from './pages/AboutPage';
@@ -36,7 +37,7 @@ type Screen =
   | 'Login' | 'Register' | 'Forgot' | 'About'
   | 'DriverDashboard' | 'BookingRequests' | 'Calculator'
   | 'DriverAgenda' | 'CarRegistration' | 'DriverHistory'
-  | 'DriverSettings' | 'DriverAddRide' | 'EditProfile' | 'EditPrice'
+  | 'DriverSettings' | 'DriverAddRide' | 'DriverPassengers' | 'EditProfile' | 'EditPrice'
   | 'PassengerDashboard' | 'NewBooking' | 'PassengerAgenda'
   | 'PassengerHistory' | 'RideDetails' | 'PassengerRideDetails'
   | 'PassengerProfile' | 'Notifications' | 'UnavailablePeriods';
@@ -92,6 +93,7 @@ function AppNavigator() {
       {screen === 'PassengerHistory' && <PassengerHistoryPage navigate={navigate} />}
       {screen === 'RideDetails' && <RideDetailsPage navigate={navigate} ride={navParams.ride} />}
       {screen === 'DriverAddRide' && <DriverAddRidePage navigate={navigate} />}
+      {screen === 'DriverPassengers' && <DriverPassengersPage navigate={navigate} />}
       {screen === 'EditProfile' && <EditProfilePage navigate={navigate} />}
       {screen === 'EditPrice' && <EditPricePage navigate={navigate} />}
       {screen === 'PassengerRideDetails' && <PassengerRideDetailsPage navigate={navigate} ride={navParams.ride} />}

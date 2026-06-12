@@ -5,13 +5,12 @@ import { Avatar } from './Avatar';
 
 interface BookingRequestCardProps {
     passengerName: string;
-    time: string; // Ex: "Hoje, 14:30"
+    time: string; // Ex: "13/06 às 14:30"
     pickup: string; // origem
     destination: string;
     distance: string;
-    estimatedPrice: string;
     category?: string; // Padrão ou VIP
-    onAccept: () => void;
+    onQuote: () => void;
     onDecline: () => void;
 }
 
@@ -21,10 +20,9 @@ export function BookingRequestCard({
     pickup,
     destination,
     distance,
-    estimatedPrice,
     category = 'Padrão',
-    onAccept,
-    onDecline
+    onQuote,
+    onDecline,
 }: BookingRequestCardProps) {
     return (
         <View className="bg-background-paper p-4 rounded-2xl shadow-sm border border-surface-border mb-5">
@@ -38,7 +36,7 @@ export function BookingRequestCard({
                 <Text className="text-primary font-extrabold text-sm">{time}</Text>
             </View>
 
-            {/* 2. Info do Passageiro e Preço */}
+            {/* 2. Info do Passageiro + tag "A orçar" */}
             <View className="flex-row justify-between items-center mb-4">
                 <View className="flex-row items-center flex-1">
                     <Avatar size="md" />
@@ -51,10 +49,8 @@ export function BookingRequestCard({
                     </View>
                 </View>
 
-                {/* Destaque do Lucro */}
-                <View className="items-end">
-                    <Text className="text-surface-muted text-[10px] font-bold uppercase mb-0.5">Ganhos (Est.)</Text>
-                    <Text className="text-xl font-black text-status-success">R$ {estimatedPrice}</Text>
+                <View className="bg-accent-light px-3 py-1.5 rounded-full">
+                    <Text className="text-primary text-[10px] font-black uppercase tracking-wider">A orçar</Text>
                 </View>
             </View>
 
@@ -83,11 +79,11 @@ export function BookingRequestCard({
 
                 <TouchableOpacity
                     className="flex-1 flex-row items-center justify-center py-3 bg-primary rounded-xl shadow-sm ml-2"
-                    onPress={onAccept}
+                    onPress={onQuote}
                     activeOpacity={0.8}
                 >
-                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                    <Text className="text-white font-bold ml-2 text-sm">Aceitar Corrida</Text>
+                    <Ionicons name="cash-outline" size={18} color="#fff" />
+                    <Text className="text-white font-bold ml-2 text-sm">Enviar Orçamento</Text>
                 </TouchableOpacity>
             </View>
 

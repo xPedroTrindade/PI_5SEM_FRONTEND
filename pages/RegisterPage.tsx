@@ -17,12 +17,10 @@ export default function RegisterPage({ navigate }: Props) {
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
     const [telefone, setTelefone] = useState('');
-    const [precoKm, setPrecoKm] = useState('');
     const [loading, setLoading] = useState(false);
 
     function handleTipoChange(val: string) {
         setProfileType(val === 'Motorista' ? 'driver' : 'passenger');
-        if (val !== 'Motorista') setPrecoKm(''); // 2.5 — limpa preço ao trocar pra passageiro
     }
 
     async function handleCadastrar() {
@@ -30,11 +28,6 @@ export default function RegisterPage({ navigate }: Props) {
             Alert.alert('Atenção', 'Preencha todos os campos obrigatórios.');
             return;
         }
-        if (profileType === 'driver' && !precoKm) {
-            Alert.alert('Atenção', 'Informe o preço por km.');
-            return;
-        }
-
         setLoading(true);
         try {
             const payload = {
@@ -42,8 +35,7 @@ export default function RegisterPage({ navigate }: Props) {
                 email: email.trim().toLowerCase(),
                 senha,
                 telefone: telefone.trim(),
-                tipo: profileType === 'driver' ? 'motorista' : 'passageiro',
-                precoKm: profileType === 'driver' ? parseFloat(precoKm.replace(',', '.')) : undefined,
+                tipo: (profileType === 'driver' ? 'motorista' : 'passageiro') as 'motorista' | 'passageiro',
             };
             console.log('[Register] enviando payload:', JSON.stringify(payload));
             await signUp(payload);
@@ -82,16 +74,13 @@ export default function RegisterPage({ navigate }: Props) {
                     />
                 </View>
 
-                {/* 2.5 — Campo só aparece para motoristas */}
+                {/* Motoristas definem o preço por km depois, nas Configurações */}
                 {profileType === 'driver' && (
-                    <View className="mb-6">
-                        <CustomInput
-                            iconName="cash-outline"
-                            placeholder="Preço cobrado por km (R$)"
-                            keyboardType="decimal-pad"
-                            value={precoKm}
-                            onChangeText={setPrecoKm}
-                        />
+                    <View className="flex-row items-center mb-6 px-1">
+                        <Ionicons name="information-circle-outline" size={16} color="#1A237E" />
+                        <Text className="text-surface-muted text-xs ml-2 flex-1">
+                            Você vai definir seu preço por km depois, em Configurações.
+                        </Text>
                     </View>
                 )}
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DriverBottomNavProps {
     currentScreen: string;
@@ -8,9 +9,15 @@ interface DriverBottomNavProps {
 }
 
 export function DriverBottomNav({ currentScreen, navigate }: DriverBottomNavProps) {
+    const { signOut } = useAuth();
     // Função auxiliar para mudar a cor se o botão for a tela atual
     const getColor = (screenName: string) => currentScreen === screenName ? '#1A237E' : '#9CA3AF';
     const getTextColor = (screenName: string) => currentScreen === screenName ? 'text-primary' : 'text-surface-muted';
+
+    const handleSignOut = async () => {
+        await signOut();
+        navigate('Login');
+    };
 
     return (
         <View className="flex-row justify-around items-center bg-background-paper py-3 border-t border-surface-border">
@@ -40,7 +47,7 @@ export function DriverBottomNav({ currentScreen, navigate }: DriverBottomNavProp
             </TouchableOpacity>
 
             {/* 5. Sair */}
-            <TouchableOpacity className="items-center" onPress={() => navigate('Login')}>
+            <TouchableOpacity className="items-center" onPress={handleSignOut}>
                 <Ionicons name="log-out-outline" size={24} color="#EF4444" />
                 <Text className="text-[10px] font-bold mt-1 text-red-500">Sair</Text>
             </TouchableOpacity>

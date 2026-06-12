@@ -7,13 +7,14 @@ interface AgendaRideCardProps {
     passengerName: string;
     location: string;
     rideType: string;
-    status: 'Confirmada' | 'Pagamento Pendente' | 'Concluída' | 'Cancelada';
+    status: 'Confirmada' | 'Pagamento Pendente' | 'Em andamento' | 'Concluída' | 'Cancelada';
 }
 
 export function AgendaRideCard({ time, passengerName, location, rideType, status }: AgendaRideCardProps) {
     // Lógica para definir a cor da tag de status
     let statusColor = 'bg-gray-200 text-gray-700';
     if (status === 'Confirmada') statusColor = 'bg-green-100 text-green-800 border-green-200';
+    if (status === 'Em andamento') statusColor = 'bg-indigo-100 text-indigo-800 border-indigo-200';
     if (status === 'Pagamento Pendente') statusColor = 'bg-yellow-100 text-yellow-800 border-yellow-200';
     if (status === 'Concluída') statusColor = 'bg-blue-100 text-blue-800 border-blue-200';
     if (status === 'Cancelada') statusColor = 'bg-red-100 text-red-800 border-red-200';
