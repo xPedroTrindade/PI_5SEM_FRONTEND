@@ -32,7 +32,8 @@
         {
           "photosPermission": "Permitir que o DriverPro acesse suas fotos para atualizar o avatar."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }
