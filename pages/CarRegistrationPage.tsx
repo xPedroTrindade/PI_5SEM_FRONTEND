@@ -31,7 +31,11 @@ export default function CarRegistrationPage({ navigate }: Props) {
                 setVehicleId(data._id);
                 setCarModel(data.modelo ?? '');
                 setLicensePlate(data.placa ?? '');
+                setCapacity(data.lugares?.toString() ?? '');
                 setFuelConsumption(data.consumoMedio?.toString().replace('.', ',') ?? '');
+                setAcceptsPets(data.aceitaPets ?? false);
+                setAcceptsChildSeat(data.aceitaCadeirinha ?? false);
+                setAcceptsVolume(data.aceitaVolumes ?? false);
             } catch {}
             finally { setFetching(false); }
         }
@@ -49,9 +53,16 @@ export default function CarRegistrationPage({ navigate }: Props) {
             driverId: driver?.driverId,
             modelo: carModel.trim(),
             placa: licensePlate.trim().toUpperCase(),
+            aceitaPets: acceptsPets,
+            aceitaCadeirinha: acceptsChildSeat,
+            aceitaVolumes: acceptsVolume,
         };
         if (fuelConsumption.trim()) {
             payload.consumoMedio = parseFloat(fuelConsumption.replace(',', '.'));
+        }
+        if (capacity.trim()) {
+            const lugares = parseInt(capacity, 10);
+            if (!isNaN(lugares)) payload.lugares = lugares;
         }
         try {
             if (vehicleId) {
