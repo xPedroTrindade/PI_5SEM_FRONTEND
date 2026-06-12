@@ -7,8 +7,9 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { DatePickerModal } from '../components/DatePickerModal';
+import { RouteSelector } from '../components/RouteSelector';
 import api from '../config/api';
-import { GeoLocation, getRoute } from '../utils/geo';
+import { GeoLocation } from '../utils/geo';
 
 interface Props {
     navigate: (screen: string) => void;
@@ -40,9 +41,6 @@ export default function NewBookingPage({ navigate }: Props) {
     const [originLoc, setOriginLoc] = useState<GeoLocation | null>(null);
     const [destLoc, setDestLoc] = useState<GeoLocation | null>(null);
     const [distance, setDistance] = useState('');
-    const [routeMin, setRouteMin] = useState<number | null>(null);
-    const [calcDist, setCalcDist] = useState(false);
-    const [distMsg, setDistMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showCalendar, setShowCalendar] = useState(false);
     const [time, setTime] = useState('');
@@ -61,36 +59,6 @@ export default function NewBookingPage({ navigate }: Props) {
             .catch(() => {})
             .finally(() => setLoadingDrivers(false));
     }, []);
-
-    // Calcula a distância/tempo automaticamente quando origem e destino são escolhidos
-    useEffect(() => {
-        if (!originLoc || !destLoc) {
-            setDistance('');
-            setRouteMin(null);
-            setDistMsg(null);
-            return;
-        }
-        let active = true;
-        setCalcDist(true);
-        setDistMsg(null);
-        getRoute(originLoc.lat, originLoc.lon, destLoc.lat, destLoc.lon)
-            .then((r) => {
-                if (!active) return;
-                setDistance(r.distanceKm.toFixed(1).replace('.', ','));
-                setRouteMin(r.durationMin);
-                setDistMsg({ type: 'ok', text: 'Rota encontrada' });
-            })
-            .catch(() => {
-                if (!active) return;
-                setDistance('');
-                setRouteMin(null);
-                setDistMsg({ type: 'err', text: 'Não foi possível calcular a rota entre esses endereços.' });
-            })
-            .finally(() => {
-                if (active) setCalcDist(false);
-            });
-        return () => { active = false; };
-    }, [originLoc, destLoc]);
 
     const distValue = parseFloat(distance.replace(',', '.')) || 0;
 
@@ -179,29 +147,12 @@ export default function NewBookingPage({ navigate }: Props) {
                         onClear={() => setDestLoc(null)}
                     />
 
-                    {/* Resumo da rota (distância + tempo) */}
-                    {calcDist && (
-                        <View className="flex-row items-center mt-1 mb-3 ml-1">
-                            <ActivityIndicator size="small" color="#1A237E" />
-                            <Text className="text-primary text-xs font-bold ml-2">Calculando distância da rota...</Text>
-                        </View>
-                    )}
-                    {!calcDist && distMsg?.type === 'ok' && distValue > 0 && (
-                        <View className="flex-row justify-around items-center bg-background-paper border border-surface-border rounded-xl p-3 mt-1 mb-3">
-                            <View className="items-center">
-                                <Text className="text-surface-muted text-[10px] uppercase font-bold tracking-wider">Distância</Text>
-                                <Text className="text-primary font-extrabold text-base">{distance} km</Text>
-                            </View>
-                            <View className="w-px h-7 bg-surface-border" />
-                            <View className="items-center">
-                                <Text className="text-surface-muted text-[10px] uppercase font-bold tracking-wider">Tempo est.</Text>
-                                <Text className="text-primary font-extrabold text-base">{routeMin ?? '--'} min</Text>
-                            </View>
-                        </View>
-                    )}
-                    {!calcDist && distMsg?.type === 'err' && (
-                        <Text className="text-status-danger text-xs mt-1 mb-3 ml-1">{distMsg.text}</Text>
-                    )}
+                    {/* Mapa + escolha de rotas (OpenStreetMap, grátis) */}
+                    <RouteSelector
+                        origin={originLoc}
+                        destination={destLoc}
+                        onRouteChange={(info) => setDistance(info ? info.distanceKm.toFixed(1).replace('.', ',') : '')}
+                    />
 
                     <Text className="text-primary font-bold text-lg mt-4 mb-3">2. Preferências da Viagem</Text>
                     <View className="mb-4">

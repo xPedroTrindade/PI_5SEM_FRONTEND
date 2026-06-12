@@ -60,3 +60,22 @@ export async function getRoute(oLat: number, oLon: number, dLat: number, dLon: n
         coordinates: coords.map(([lon, lat]) => ({ latitude: lat, longitude: lon })),
     };
 }
+
+// Rotas ALTERNATIVAS de carro entre dois pontos (OSRM) — para o usuário escolher
+export async function getRouteAlternatives(oLat: number, oLon: number, dLat: number, dLon: number): Promise<RouteResult[]> {
+    const url = `https://router.project-osrm.org/route/v1/driving/${oLon},${oLat};${dLon},${dLat}?alternatives=3&overview=full&geometries=geojson`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('Falha ao calcular as rotas.');
+    const json = await resp.json();
+    if (json.code !== 'Ok' || !Array.isArray(json.routes) || json.routes.length === 0) {
+        throw new Error('Nenhuma rota encontrada.');
+    }
+    return json.routes.map((route: any) => {
+        const coords: [number, number][] = route.geometry?.coordinates ?? [];
+        return {
+            distanceKm: route.distance / 1000,
+            durationMin: Math.round(route.duration / 60),
+            coordinates: coords.map(([lon, lat]) => ({ latitude: lat, longitude: lon })),
+        };
+    });
+}
