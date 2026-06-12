@@ -25,7 +25,12 @@ export interface RouteResult {
 export async function searchAddress(query: string): Promise<GeoLocation[]> {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=br&q=${encodeURIComponent(query)}`;
     const resp = await fetch(url, {
-        headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' },
+        headers: {
+            Accept: 'application/json',
+            'Accept-Language': 'pt-BR',
+            // No navegador este header e ignorado; no celular identifica o app (exigencia do Nominatim)
+            'User-Agent': 'DriverPro/1.0 (projeto-integrador)',
+        },
     });
     if (!resp.ok) return [];
     const json = await resp.json();

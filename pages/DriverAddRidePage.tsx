@@ -4,12 +4,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { CustomInput } from '../components/CustomInput';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Dropdown } from '../components/Dropdown';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { RegisterPassengerModal } from '../components/RegisterPassengerModal';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
+import { GeoLocation, getRoute } from '../utils/geo';
 
 interface Props {
     navigate: (screen: string) => void;
+}
+
+// Encurta o endereco completo do OpenStreetMap para algo legivel
+function shortLabel(loc: GeoLocation) {
+    return loc.displayName.split(',').slice(0, 3).join(',').trim();
 }
 
 export default function DriverAddRidePage({ navigate }: Props) {
@@ -19,9 +26,11 @@ export default function DriverAddRidePage({ navigate }: Props) {
     const [showAddPassenger, setShowAddPassenger] = useState(false);
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
-    const [pickup, setPickup] = useState('');
-    const [destination, setDestination] = useState('');
+    const [originLoc, setOriginLoc] = useState<GeoLocation | null>(null);
+    const [destLoc, setDestLoc] = useState<GeoLocation | null>(null);
     const [distance, setDistance] = useState('');
+    const [calcDist, setCalcDist] = useState(false);
+    const [distMsg, setDistMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
     const [price, setPrice] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -34,6 +43,30 @@ export default function DriverAddRidePage({ navigate }: Props) {
     }, [driver?.driverId]);
 
     useEffect(() => { loadPassengers(); }, [loadPassengers]);
+
+    // Calcula a distancia automaticamente ao escolher origem e destino
+    useEffect(() => {
+        if (!originLoc || !destLoc) {
+            setDistMsg(null);
+            return;
+        }
+        let active = true;
+        setCalcDist(true);
+        setDistMsg(null);
+        getRoute(originLoc.lat, originLoc.lon, destLoc.lat, destLoc.lon)
+            .then((r) => {
+                if (!active) return;
+                setDistance(r.distanceKm.toFixed(1).replace('.', ','));
+                setDistMsg({ type: 'ok', text: `Rota: ${r.distanceKm.toFixed(1).replace('.', ',')} km` });
+            })
+            .catch(() => {
+                if (active) setDistMsg({ type: 'err', text: 'Não foi possível calcular a distância.' });
+            })
+            .finally(() => {
+                if (active) setCalcDist(false);
+            });
+        return () => { active = false; };
+    }, [originLoc, destLoc]);
 
     function parseDate(input: string): string | null {
         const parts = input.trim().split('/');
@@ -53,8 +86,12 @@ export default function DriverAddRidePage({ navigate }: Props) {
             Alert.alert('Atenção', 'Selecione um passageiro (ou cadastre um novo).');
             return;
         }
-        if (!date.trim() || !time.trim() || !pickup.trim() || !destination.trim()) {
-            Alert.alert('Atenção', 'Preencha todos os campos obrigatórios.');
+        if (!originLoc || !destLoc) {
+            Alert.alert('Atenção', 'Selecione a origem e o destino na lista de sugestões.');
+            return;
+        }
+        if (!date.trim() || !time.trim()) {
+            Alert.alert('Atenção', 'Preencha a data e o horário.');
             return;
         }
         const parsedDate = parseDate(date);
@@ -80,8 +117,8 @@ export default function DriverAddRidePage({ navigate }: Props) {
                 passageiroNome: passenger.nome,
                 data: parsedDate,
                 hora: time.trim(),
-                origem: pickup.trim(),
-                destino: destination.trim(),
+                origem: shortLabel(originLoc),
+                destino: shortLabel(destLoc),
                 distanciaKm: distValue,
                 valor: priceValue,
             });
@@ -107,7 +144,7 @@ export default function DriverAddRidePage({ navigate }: Props) {
             </View>
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                     <Text className="text-surface-muted mb-6 font-medium text-sm">
                         Use esta tela para registrar corridas combinadas por fora do app (telefone, WhatsApp, etc) e manter sua agenda organizada.
@@ -146,18 +183,31 @@ export default function DriverAddRidePage({ navigate }: Props) {
                     </View>
 
                     <Text className="text-primary font-bold text-lg mt-4 mb-3">3. Trajeto e Valor</Text>
-                    <CustomInput
+                    <AddressAutocomplete
                         iconName="location-outline"
                         placeholder="Endereço de Origem"
-                        value={pickup}
-                        onChangeText={setPickup}
+                        onLocationSelect={setOriginLoc}
+                        onClear={() => setOriginLoc(null)}
                     />
-                    <CustomInput
+                    <AddressAutocomplete
                         iconName="flag-outline"
                         placeholder="Endereço de Destino"
-                        value={destination}
-                        onChangeText={setDestination}
+                        onLocationSelect={setDestLoc}
+                        onClear={() => setDestLoc(null)}
                     />
+
+                    {calcDist && (
+                        <View className="flex-row items-center mb-3 ml-1">
+                            <ActivityIndicator size="small" color="#1A237E" />
+                            <Text className="text-primary text-xs font-bold ml-2">Calculando distância...</Text>
+                        </View>
+                    )}
+                    {!calcDist && distMsg && (
+                        <Text className={`text-xs mb-3 ml-1 font-bold ${distMsg.type === 'ok' ? 'text-status-success' : 'text-status-danger'}`}>
+                            {distMsg.text}
+                        </Text>
+                    )}
+
                     <CustomInput
                         iconName="map-outline"
                         placeholder="Distância (km)"
