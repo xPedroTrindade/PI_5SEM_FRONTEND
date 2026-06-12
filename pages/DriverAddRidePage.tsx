@@ -24,7 +24,7 @@ function formatBR(d: Date) {
 function toISODate(d: Date) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-// Encurta o endereco completo do OpenStreetMap para algo legivel
+// Encurta o endereco completo para algo legivel.
 function shortLabel(loc: GeoLocation) {
     return loc.displayName.split(',').slice(0, 3).join(',').trim();
 }

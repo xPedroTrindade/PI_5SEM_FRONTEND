@@ -32,7 +32,7 @@ function formatBR(d: Date) {
 function toISODate(d: Date) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-// Encurta o endereço completo do OpenStreetMap para algo legível
+// Encurta o endereco completo para algo legivel.
 function shortLabel(loc: GeoLocation) {
     return loc.displayName.split(',').slice(0, 3).join(',').trim();
 }
@@ -147,7 +147,7 @@ export default function NewBookingPage({ navigate }: Props) {
                         onClear={() => setDestLoc(null)}
                     />
 
-                    {/* Mapa + escolha de rotas (OpenStreetMap, grátis) */}
+                    {/* Mapa + escolha de rotas via Google Maps */}
                     <RouteSelector
                         origin={originLoc}
                         destination={destLoc}

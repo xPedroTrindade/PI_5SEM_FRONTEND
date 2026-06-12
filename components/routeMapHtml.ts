@@ -1,7 +1,3 @@
-// HTML do mapa usado pelo RouteMapView (WebView no celular, <iframe> no navegador).
-// Se houver EXPO_PUBLIC_GOOGLE_MAPS_KEY -> usa o MAPA DO GOOGLE (Maps JavaScript API).
-// Caso contrário -> usa Leaflet + tiles GRÁTIS do OpenStreetMap (fallback).
-
 const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
 type LatLng = { latitude: number; longitude: number };
@@ -15,10 +11,9 @@ export function buildRouteHtml(
 ): string {
     return GOOGLE_KEY
         ? buildGoogleHtml(coordinates, oLat, oLon, dLat, dLon, GOOGLE_KEY)
-        : buildOsmHtml(coordinates, oLat, oLon, dLat, dLon);
+        : buildMissingKeyHtml();
 }
 
-// ---- Mapa do Google (Maps JavaScript API) ----
 function buildGoogleHtml(coords: LatLng[], oLat: number, oLon: number, dLat: number, dLon: number, key: string): string {
     const path = JSON.stringify(coords.map(c => ({ lat: c.latitude, lng: c.longitude })));
     return `<!DOCTYPE html>
@@ -46,27 +41,16 @@ function buildGoogleHtml(coords: LatLng[], oLat: number, oLon: number, dLat: num
 </html>`;
 }
 
-// ---- Fallback: Leaflet + OpenStreetMap (grátis) ----
-function buildOsmHtml(coords: LatLng[], oLat: number, oLon: number, dLat: number, dLon: number): string {
-    const polyline = JSON.stringify(coords.map(c => [c.latitude, c.longitude]));
+function buildMissingKeyHtml(): string {
     return `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>*{margin:0;padding:0;box-sizing:border-box}html,body,#map{width:100%;height:100%}</style>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html,body{height:100%;width:100%;margin:0;padding:0}
+    body{display:flex;align-items:center;justify-content:center;background:#EEF1FF;color:#1A237E;font:600 13px system-ui;text-align:center;padding:12px;box-sizing:border-box}
+  </style>
 </head>
-<body>
-<div id="map"></div>
-<script>
-  var map = L.map('map',{zoomControl:false,attributionControl:false});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-  L.circleMarker([${oLat},${oLon}],{radius:8,color:'#fff',weight:2,fillColor:'#1A237E',fillOpacity:1}).addTo(map);
-  L.circleMarker([${dLat},${dLon}],{radius:8,color:'#fff',weight:2,fillColor:'#EF4444',fillOpacity:1}).addTo(map);
-  var pl = L.polyline(${polyline},{color:'#1A237E',weight:5,opacity:0.85}).addTo(map);
-  map.fitBounds(pl.getBounds(),{padding:[24,24]});
-</script>
-</body>
+<body>Defina EXPO_PUBLIC_GOOGLE_MAPS_KEY no .env para exibir o mapa do Google.</body>
 </html>`;
 }

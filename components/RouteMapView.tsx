@@ -11,7 +11,6 @@ interface Props {
     height?: number;
 }
 
-// Versão CELULAR do mapa (Android/iOS): usa WebView com Leaflet.
 export function RouteMapView({ coordinates, oLat, oLon, dLat, dLon, height = 200 }: Props) {
     return (
         <WebView
