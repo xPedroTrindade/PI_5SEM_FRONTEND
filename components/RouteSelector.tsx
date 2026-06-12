@@ -7,6 +7,7 @@ import { RouteMapView } from './RouteMapView';
 interface RouteInfo {
     distanceKm: number;
     durationMin: number;
+    tollBRL: number | null;
 }
 
 interface Props {
@@ -35,7 +36,7 @@ export function RouteSelector({ origin, destination, onRouteChange }: Props) {
                 if (!active) return;
                 setRoutes(rs);
                 setSelected(0);
-                onRouteChange({ distanceKm: rs[0].distanceKm, durationMin: rs[0].durationMin });
+                onRouteChange({ distanceKm: rs[0].distanceKm, durationMin: rs[0].durationMin, tollBRL: rs[0].tollBRL });
             })
             .catch(() => {
                 if (!active) return;
@@ -52,7 +53,7 @@ export function RouteSelector({ origin, destination, onRouteChange }: Props) {
 
     function pick(i: number) {
         setSelected(i);
-        onRouteChange({ distanceKm: routes[i].distanceKm, durationMin: routes[i].durationMin });
+        onRouteChange({ distanceKm: routes[i].distanceKm, durationMin: routes[i].durationMin, tollBRL: routes[i].tollBRL });
     }
 
     if (!origin || !destination) return null;

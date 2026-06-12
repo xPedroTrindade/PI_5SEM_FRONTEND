@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Switch, Keyboard } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Switch, Keyboard, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInput } from '../components/CustomInput';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { RouteSelector } from '../components/RouteSelector';
+import { GeoLocation } from '../utils/geo';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
 
@@ -13,12 +16,15 @@ interface Props {
 export default function CalculatorPage({ navigate }: Props) {
     const { driver } = useAuth();
 
-    const [distance, setDistance] = useState('');
+    const [originLoc, setOriginLoc] = useState<GeoLocation | null>(null);
+    const [destLoc, setDestLoc] = useState<GeoLocation | null>(null);
+    const [routeDistance, setRouteDistance] = useState<number | null>(null);
+    const [routeToll, setRouteToll] = useState<number | null>(null);
     const [consumption, setConsumption] = useState('');
     const [fuelPrice, setFuelPrice] = useState('5.80');
     const [pricePerKm, setPricePerKm] = useState('');
     const [isRoundTrip, setIsRoundTrip] = useState(false);
-    const [results, setResults] = useState<{ cost: string; profit: string; total: string } | null>(null);
+    const [results, setResults] = useState<{ distance: string; fuel: string; toll: string; cost: string; profit: string; total: string } | null>(null);
 
     useEffect(() => {
         if (driver?.precoKm) {
@@ -37,23 +43,29 @@ export default function CalculatorPage({ navigate }: Props) {
 
     const handleCalculate = () => {
         Keyboard.dismiss();
-
-        const dist = parseFloat(distance.replace(',', '.')) || 0;
+        if (routeDistance == null) {
+            Alert.alert('Atenção', 'Escolha a origem e o destino para calcular a rota.');
+            return;
+        }
         const cons = parseFloat(consumption.replace(',', '.')) || 1;
         const fPrice = parseFloat(fuelPrice.replace(',', '.')) || 0;
         const pKm = parseFloat(pricePerKm.replace(',', '.')) || 0;
 
-        const totalDist = isRoundTrip ? dist * 2 : dist;
-        const fuelUsedLiters = totalDist / cons;
-
-        const estimatedCost = fuelUsedLiters * fPrice;
+        const mult = isRoundTrip ? 2 : 1;
+        const totalDist = routeDistance * mult;
+        const totalToll = (routeToll ?? 0) * mult;
+        const fuelCost = (totalDist / cons) * fPrice;
+        const totalCost = fuelCost + totalToll;
         const totalPrice = totalDist * pKm;
-        const netProfit = totalPrice - estimatedCost;
+        const netProfit = totalPrice - totalCost;
 
         setResults({
-            cost: estimatedCost.toFixed(2).replace('.', ','),
+            distance: totalDist.toFixed(1).replace('.', ','),
+            fuel: fuelCost.toFixed(2).replace('.', ','),
+            toll: totalToll.toFixed(2).replace('.', ','),
+            cost: totalCost.toFixed(2).replace('.', ','),
             profit: netProfit.toFixed(2).replace('.', ','),
-            total: totalPrice.toFixed(2).replace('.', ',')
+            total: totalPrice.toFixed(2).replace('.', ','),
         });
     };
 
@@ -68,19 +80,32 @@ export default function CalculatorPage({ navigate }: Props) {
                 <Text className="text-white text-xl font-bold ml-2">Calculadora de Lucro</Text>
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                 <Text className="text-surface-muted mb-4 font-medium">
-                    Os dados abaixo foram preenchidos automaticamente com base no seu perfil.
+                    A distância e o pedágio vêm da rota escolhida. Consumo e preço por km já foram preenchidos pelo seu perfil.
                 </Text>
 
-                <Text className="text-primary font-bold text-lg mb-3">Distância</Text>
-                <CustomInput
-                    iconName="map-outline"
-                    placeholder="Distância da corrida (km)"
-                    keyboardType="numeric"
-                    value={distance}
-                    onChangeText={setDistance}
+                <Text className="text-primary font-bold text-lg mb-3">Rota</Text>
+                <AddressAutocomplete
+                    iconName="location-outline"
+                    placeholder="Origem"
+                    onLocationSelect={setOriginLoc}
+                    onClear={() => setOriginLoc(null)}
+                />
+                <AddressAutocomplete
+                    iconName="flag-outline"
+                    placeholder="Destino"
+                    onLocationSelect={setDestLoc}
+                    onClear={() => setDestLoc(null)}
+                />
+                <RouteSelector
+                    origin={originLoc}
+                    destination={destLoc}
+                    onRouteChange={(info) => {
+                        setRouteDistance(info ? info.distanceKm : null);
+                        setRouteToll(info ? info.tollBRL : null);
+                    }}
                 />
 
                 <Text className="text-primary font-bold text-lg mb-3">Consumo do Carro</Text>
@@ -135,10 +160,25 @@ export default function CalculatorPage({ navigate }: Props) {
                                 <Text className="text-surface-muted text-xs font-medium mb-1">Custo Estimado</Text>
                                 <Text className="text-lg font-bold text-status-danger">R$ {results.cost}</Text>
                             </View>
-
                             <View className="flex-1 bg-primary p-4 rounded-lg shadow-sm ml-2 items-center">
                                 <Text className="text-accent text-xs font-medium mb-1">Lucro Líquido</Text>
                                 <Text className="text-xl font-bold text-white">R$ {results.profit}</Text>
+                            </View>
+                        </View>
+
+                        {/* Detalhamento */}
+                        <View className="bg-background-paper p-4 rounded-lg shadow-sm border border-surface-border mb-4">
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-surface-muted">Distância {isRoundTrip ? '(ida e volta)' : ''}</Text>
+                                <Text className="text-primary font-bold">{results.distance} km</Text>
+                            </View>
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-surface-muted">Combustível</Text>
+                                <Text className="text-primary font-bold">R$ {results.fuel}</Text>
+                            </View>
+                            <View className="flex-row justify-between">
+                                <Text className="text-surface-muted">Pedágio</Text>
+                                <Text className="text-primary font-bold">R$ {results.toll}</Text>
                             </View>
                         </View>
 
