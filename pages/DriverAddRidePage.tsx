@@ -5,6 +5,7 @@ import { CustomInput } from '../components/CustomInput';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Dropdown } from '../components/Dropdown';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { DatePickerModal } from '../components/DatePickerModal';
 import { RegisterPassengerModal } from '../components/RegisterPassengerModal';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
@@ -14,6 +15,15 @@ interface Props {
     navigate: (screen: string) => void;
 }
 
+function pad(n: number) {
+    return n.toString().padStart(2, '0');
+}
+function formatBR(d: Date) {
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+function toISODate(d: Date) {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 // Encurta o endereco completo do OpenStreetMap para algo legivel
 function shortLabel(loc: GeoLocation) {
     return loc.displayName.split(',').slice(0, 3).join(',').trim();
@@ -24,7 +34,8 @@ export default function DriverAddRidePage({ navigate }: Props) {
     const [passengers, setPassengers] = useState<any[]>([]);
     const [selectedPassengerId, setSelectedPassengerId] = useState<string | null>(null);
     const [showAddPassenger, setShowAddPassenger] = useState(false);
-    const [date, setDate] = useState('');
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [showCalendar, setShowCalendar] = useState(false);
     const [time, setTime] = useState('');
     const [originLoc, setOriginLoc] = useState<GeoLocation | null>(null);
     const [destLoc, setDestLoc] = useState<GeoLocation | null>(null);
@@ -68,16 +79,20 @@ export default function DriverAddRidePage({ navigate }: Props) {
         return () => { active = false; };
     }, [originLoc, destLoc]);
 
-    function parseDate(input: string): string | null {
-        const parts = input.trim().split('/');
-        if (parts.length === 2) {
-            const year = new Date().getFullYear();
-            return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    // Máscara de horário: formata os dígitos como HH:MM e valida 00-23 / 00-59
+    function handleTimeChange(text: string) {
+        const digits = text.replace(/\D/g, '').slice(0, 4);
+        if (digits.length <= 2) {
+            let hh = digits;
+            if (digits.length === 2 && parseInt(digits, 10) > 23) hh = '23';
+            setTime(hh);
+        } else {
+            let hh = digits.slice(0, 2);
+            let mm = digits.slice(2);
+            if (parseInt(hh, 10) > 23) hh = '23';
+            if (parseInt(mm, 10) > 59) mm = '59';
+            setTime(`${hh}:${mm}`);
         }
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-        return null;
     }
 
     async function handleSaveRide() {
@@ -90,13 +105,12 @@ export default function DriverAddRidePage({ navigate }: Props) {
             Alert.alert('Atenção', 'Selecione a origem e o destino na lista de sugestões.');
             return;
         }
-        if (!date.trim() || !time.trim()) {
-            Alert.alert('Atenção', 'Preencha a data e o horário.');
+        if (!selectedDate) {
+            Alert.alert('Atenção', 'Selecione a data da corrida.');
             return;
         }
-        const parsedDate = parseDate(date);
-        if (!parsedDate) {
-            Alert.alert('Atenção', 'Informe a data no formato DD/MM ou DD/MM/AAAA.');
+        if (!time.trim() || !/^\d{2}:\d{2}$/.test(time.trim())) {
+            Alert.alert('Atenção', 'Informe o horário no formato HH:MM.');
             return;
         }
         const distValue = parseFloat(distance.replace(',', '.'));
@@ -115,7 +129,7 @@ export default function DriverAddRidePage({ navigate }: Props) {
                 driverId: driver?.driverId,
                 passageiroId: passenger._id,
                 passageiroNome: passenger.nome,
-                data: parsedDate,
+                data: toISODate(selectedDate),
                 hora: time.trim(),
                 origem: shortLabel(originLoc),
                 destino: shortLabel(destLoc),
@@ -165,19 +179,24 @@ export default function DriverAddRidePage({ navigate }: Props) {
                     <Text className="text-primary font-bold text-lg mt-4 mb-3">2. Data e Horário</Text>
                     <View className="flex-row justify-between mb-2">
                         <View className="flex-1 mr-2">
-                            <CustomInput
-                                iconName="calendar-outline"
-                                placeholder="Ex: 15/10"
-                                value={date}
-                                onChangeText={setDate}
-                            />
+                            <TouchableOpacity
+                                onPress={() => setShowCalendar(true)}
+                                className="flex-row items-center bg-white w-full p-4 rounded-lg shadow-sm mb-4 border border-surface-border"
+                            >
+                                <Ionicons name="calendar-outline" size={20} color="#1A237E" />
+                                <Text className={`text-base ml-3 ${selectedDate ? 'text-primary' : 'text-surface-muted'}`}>
+                                    {selectedDate ? formatBR(selectedDate) : 'Data'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                         <View className="flex-1 ml-2">
                             <CustomInput
                                 iconName="time-outline"
-                                placeholder="Ex: 14:30"
+                                placeholder="Hora (HH:MM)"
+                                keyboardType="numeric"
+                                maxLength={5}
                                 value={time}
-                                onChangeText={setTime}
+                                onChangeText={handleTimeChange}
                             />
                         </View>
                     </View>
@@ -241,6 +260,14 @@ export default function DriverAddRidePage({ navigate }: Props) {
                     setPassengers(prev => [p, ...prev]);
                     setSelectedPassengerId(p._id);
                 }}
+            />
+
+            <DatePickerModal
+                visible={showCalendar}
+                value={selectedDate}
+                minDate={new Date()}
+                onSelect={(d) => setSelectedDate(d)}
+                onClose={() => setShowCalendar(false)}
             />
         </SafeAreaView>
     );
