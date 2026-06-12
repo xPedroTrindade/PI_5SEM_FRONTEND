@@ -107,9 +107,20 @@ export function RouteSelector({ origin, destination, onRouteChange }: Props) {
                         <Ionicons name={i === selected ? 'radio-button-on' : 'radio-button-off'} size={20} color={i === selected ? '#FDD835' : '#9CA3AF'} />
                         <Text className={`ml-2 font-bold ${i === selected ? 'text-white' : 'text-primary'}`}>Rota {i + 1}</Text>
                     </View>
-                    <Text className={`text-sm font-bold ${i === selected ? 'text-accent' : 'text-surface-muted'}`}>
-                        {r.distanceKm.toFixed(1).replace('.', ',')} km · {r.durationMin} min
-                    </Text>
+                    <View className="items-end">
+                        <Text className={`text-sm font-bold ${i === selected ? 'text-accent' : 'text-surface-muted'}`}>
+                            {r.distanceKm.toFixed(1).replace('.', ',')} km · {r.durationMin} min
+                        </Text>
+                        {r.tollBRL != null ? (
+                            <Text className={`text-xs font-bold ${i === selected ? 'text-white' : 'text-status-danger'}`}>
+                                Pedágio R$ {r.tollBRL.toFixed(2).replace('.', ',')}
+                            </Text>
+                        ) : (
+                            <Text className={`text-xs ${i === selected ? 'text-accent' : 'text-status-success'}`}>
+                                Sem pedágio
+                            </Text>
+                        )}
+                    </View>
                 </TouchableOpacity>
             ))}
         </View>

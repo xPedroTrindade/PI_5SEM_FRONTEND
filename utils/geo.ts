@@ -9,6 +9,8 @@
 //     Os componentes AddressAutocomplete e RouteMapView continuam funcionando. <<<
 // =============================================================================
 
+import api from '../config/api';
+
 export interface GeoLocation {
     displayName: string;
     lat: number;
@@ -18,6 +20,7 @@ export interface GeoLocation {
 export interface RouteResult {
     distanceKm: number;
     durationMin: number;
+    tollBRL: number | null;   // pedágio estimado (Google); null = sem pedágio / rota grátis (OSRM)
     coordinates: { latitude: number; longitude: number }[];
 }
 
@@ -56,13 +59,23 @@ export async function getRoute(oLat: number, oLon: number, dLat: number, dLon: n
     return {
         distanceKm: route.distance / 1000,
         durationMin: Math.round(route.duration / 60),
+        tollBRL: null,
         // GeoJSON vem como [lon, lat]; convertendo para {latitude, longitude}
         coordinates: coords.map(([lon, lat]) => ({ latitude: lat, longitude: lon })),
     };
 }
 
-// Rotas ALTERNATIVAS de carro entre dois pontos (OSRM) — para o usuário escolher
+// Rotas ALTERNATIVAS para o usuário escolher.
+// 1º tenta o GOOGLE (via backend /api/maps/routes, com PEDÁGIO);
+// se falhar (sem chave/offline), cai no OSRM (grátis, sem pedágio).
 export async function getRouteAlternatives(oLat: number, oLon: number, dLat: number, dLon: number): Promise<RouteResult[]> {
+    try {
+        const { data } = await api.post('/api/maps/routes', { oLat, oLon, dLat, dLon });
+        if (Array.isArray(data) && data.length > 0) return data as RouteResult[];
+    } catch {
+        // segue para o fallback OSRM
+    }
+
     const url = `https://router.project-osrm.org/route/v1/driving/${oLon},${oLat};${dLon},${dLat}?alternatives=3&overview=full&geometries=geojson`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('Falha ao calcular as rotas.');
@@ -75,6 +88,7 @@ export async function getRouteAlternatives(oLat: number, oLon: number, dLat: num
         return {
             distanceKm: route.distance / 1000,
             durationMin: Math.round(route.duration / 60),
+            tollBRL: null,
             coordinates: coords.map(([lon, lat]) => ({ latitude: lat, longitude: lon })),
         };
     });
