@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { searchAddress, GeoLocation } from '../utils/geo';
+import { searchAddress, resolvePlace, Prediction, GeoLocation } from '../utils/geo';
 
 interface Props {
     placeholder: string;
@@ -13,7 +13,7 @@ interface Props {
 
 export function AddressAutocomplete({ placeholder, iconName, initialValue = '', onLocationSelect, onClear }: Props) {
     const [query, setQuery] = useState(initialValue);
-    const [suggestions, setSuggestions] = useState<GeoLocation[]>([]);
+    const [suggestions, setSuggestions] = useState<Prediction[]>([]);
     const [loading, setLoading] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
     const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -32,16 +32,24 @@ export function AddressAutocomplete({ placeholder, iconName, initialValue = '', 
                 setSuggestions(results);
             } catch { }
             finally { setLoading(false); }
-        }, 500);
+        }, 400);
     }
 
-    function handleSelect(loc: GeoLocation) {
+    async function handleSelect(p: Prediction) {
         Keyboard.dismiss();
-        const short = loc.displayName.split(',').slice(0, 3).join(',').trim();
-        setQuery(short);
         setSuggestions([]);
-        setConfirmed(true);
-        onLocationSelect(loc);
+        setLoading(true);
+        try {
+            const loc = await resolvePlace(p);
+            const short = loc.displayName.split(',').slice(0, 3).join(',').trim();
+            setQuery(short);
+            setConfirmed(true);
+            onLocationSelect(loc);
+        } catch {
+            // se não conseguir resolver, mantém o texto digitado
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleClear() {
@@ -81,13 +89,13 @@ export function AddressAutocomplete({ placeholder, iconName, initialValue = '', 
                 <View className="bg-white border border-surface-border rounded-xl mt-1 overflow-hidden">
                     {suggestions.map((item, i) => (
                         <TouchableOpacity
-                            key={i}
+                            key={item.id + i}
                             onPress={() => handleSelect(item)}
                             className={`px-4 py-3 flex-row items-start ${i < suggestions.length - 1 ? 'border-b border-gray-100' : ''}`}
                             activeOpacity={0.7}
                         >
                             <Ionicons name="location-outline" size={16} color="#9CA3AF" style={{ marginTop: 2, marginRight: 8, flexShrink: 0 }} />
-                            <Text className="text-primary text-sm flex-1" numberOfLines={2}>{item.displayName}</Text>
+                            <Text className="text-primary text-sm flex-1" numberOfLines={2}>{item.label}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>

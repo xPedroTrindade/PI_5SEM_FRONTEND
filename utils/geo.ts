@@ -24,25 +24,52 @@ export interface RouteResult {
     coordinates: { latitude: number; longitude: number }[];
 }
 
-// Autocomplete de endereços (Nominatim / OpenStreetMap)
-export async function searchAddress(query: string): Promise<GeoLocation[]> {
+export interface Prediction {
+    id: string;        // placeId (Google) ou "lat,lon" (OSM)
+    label: string;
+    lat?: number;      // já vem preenchido no OSM
+    lon?: number;
+}
+
+// Autocomplete de endereços. 1º tenta GOOGLE Places (via backend); se falhar, Nominatim (OSM).
+export async function searchAddress(query: string): Promise<Prediction[]> {
+    try {
+        const { data } = await api.get('/api/maps/autocomplete', { params: { q: query } });
+        if (Array.isArray(data) && data.length > 0) {
+            return data.map((p: any) => ({ id: String(p.placeId), label: String(p.description) }));
+        }
+    } catch {
+        // cai no Nominatim
+    }
+
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=br&q=${encodeURIComponent(query)}`;
     const resp = await fetch(url, {
-        headers: {
-            Accept: 'application/json',
-            'Accept-Language': 'pt-BR',
-            // No navegador este header e ignorado; no celular identifica o app (exigencia do Nominatim)
-            'User-Agent': 'DriverPro/1.0 (projeto-integrador)',
-        },
+        headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR', 'User-Agent': 'DriverPro/1.0 (projeto-integrador)' },
     });
     if (!resp.ok) return [];
     const json = await resp.json();
     if (!Array.isArray(json)) return [];
     return json.map((item: any) => ({
-        displayName: String(item.display_name),
+        id: `${item.lat},${item.lon}`,
+        label: String(item.display_name),
         lat: parseFloat(item.lat),
         lon: parseFloat(item.lon),
     }));
+}
+
+// Resolve uma sugestão em coordenadas (GeoLocation).
+export async function resolvePlace(p: Prediction): Promise<GeoLocation> {
+    // OSM já traz lat/lon na própria sugestão
+    if (p.lat != null && p.lon != null) {
+        return { displayName: p.label, lat: p.lat, lon: p.lon };
+    }
+    // Google: busca os detalhes (coordenadas) pelo placeId
+    const { data } = await api.get(`/api/maps/place/${encodeURIComponent(p.id)}`);
+    return {
+        displayName: String(data.displayName ?? p.label),
+        lat: Number(data.lat),
+        lon: Number(data.lon),
+    };
 }
 
 // Rota de carro entre dois pontos (OSRM) — distância, tempo e traçado
